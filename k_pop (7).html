@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>찾아돌 - K-POP 아이돌 최애 찾기</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        arcade: {
+                            bg: '#CBD5E1',
+                            panel: '#FFFFFF',
+                            navy: '#0F172A',
+                            slate: '#334155',
+                            blue: '#2563EB',
+                            sky: '#0284C7',
+                            amber: '#D97706',
+                            rose: '#E11D48',
+                            emerald: '#059669'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @font-face {
+            font-family: 'DungGeunMo';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-10-21@1.1/DungGeunMo.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        * {
+            font-family: 'DungGeunMo', monospace, sans-serif;
+            image-rendering: pixelated;
+        }
+
+        body {
+            background-color: #CBD5E1;
+            background-image: radial-gradient(#94A3B8 1px, transparent 1px);
+            background-size: 16px 16px;
+        }
+
+        .pixel-card {
+            border: 3px solid #0F172A;
+            box-shadow: 4px 4px 0px #0F172A;
+        }
+
+        .pixel-btn {
+            border: 3px solid #0F172A;
+            box-shadow: 3px 3px 0px #0F172A;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.08s ease, box-shadow 0.08s ease;
+        }
+
+        .pixel-btn:hover {
+            filter: brightness(1.06);
+        }
+
+        .pixel-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px #0F172A;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #CBD5E1;
+            border: 2px solid #0F172A;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border: 2px solid #0F172A;
+        }
+
+        @keyframes toastSlide {
+            0% { transform: translateY(100%); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .animate-toast {
+            animation: toastSlide 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-900 flex flex-col justify-between relative overflow-x-hidden">
+
+    <!-- Confetti Canvas overlay for quiz celebration -->
+    <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50 hidden"></canvas>
+
+    <div>
+        <!-- Main Top Navigation -->
+        <header class="bg-slate-900 text-white border-b-4 border-slate-950 sticky top-0 z-40 py-3 px-4 shadow-md">
+            <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchTab('quiz')">
+                    <div class="w-10 h-10 bg-blue-600 border-2 border-white flex items-center justify-center text-xl font-bold shadow">
+                        👾
+                    </div>
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold tracking-wider text-white flex items-center gap-1.5">
+                            찾아돌 <span class="text-xs bg-amber-500 text-slate-900 px-1.5 py-0.5 border border-white font-bold">PRO</span>
+                        </h1>
+                        <p class="text-xs text-slate-300">최애 유목민을 위한 K-POP 픽셀 탐색기</p>
+                    </div>
+                </div>
+
+                <nav class="flex gap-2 w-full md:w-auto overflow-x-auto">
+                    <button id="nav-quiz" onclick="switchTab('quiz')" 
+                        class="pixel-btn px-4 py-2 bg-amber-500 text-slate-900 font-bold text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                        🎯 입덕 분석
+                    </button>
+                    <button id="nav-search" onclick="switchTab('search')" 
+                        class="pixel-btn px-4 py-2 bg-slate-700 text-white font-bold text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                        🔍 취향 탐색 (<span id="total-count-badge">38</span>)
+                    </button>
+                    <button id="nav-fav" onclick="switchTab('fav')" 
+                        class="pixel-btn px-4 py-2 bg-slate-700 text-white font-bold text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                        💾 내 보관함 (<span id="fav-count">0</span>)
+                    </button>
+                </nav>
+            </div>
+        </header>
+
+        <main class="max-w-6xl mx-auto p-4 md:p-6">
+
+            <!-- TAB 1: 입덕 분석 퀴즈 (QUIZ) -->
+            <section id="tab-quiz" class="block">
+                <div id="quiz-intro" class="bg-white pixel-card p-6 md:p-8 text-center max-w-2xl mx-auto my-6">
+                    <div class="inline-block bg-slate-900 text-white px-3 py-1 text-xs font-bold mb-4 flex items-center justify-center gap-1 w-max mx-auto">
+                        ✨ STRICT MATCHING ENGINE
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-extrabold mb-3 text-slate-900">
+                        운명의 K-POP 최애 아이돌 찾기 🎯
+                    </h2>
+                    <p class="text-sm text-slate-700 mb-6 leading-relaxed">
+                        성별과 세대는 <b>100% 엄격 적용</b>되어 조건에 맞는 후보만 추출됩니다.<br>
+                        5가지 질문을 통해 당신만의 최애 아이돌 TOP 3를 찾아보세요!
+                    </p>
+                    <button onclick="startQuiz()" class="pixel-btn px-8 py-3.5 bg-blue-600 text-white font-bold text-base hover:bg-blue-700 w-full sm:w-auto flex items-center justify-center gap-2 mx-auto">
+                        🚀 퀴즈 시작하기
+                    </button>
+                </div>
+
+                <div id="quiz-body" class="hidden bg-white pixel-card p-6 max-w-2xl mx-auto my-6">
+                    <div class="flex justify-between items-center mb-4 border-b-2 border-slate-900 pb-2">
+                        <span id="quiz-step-text" class="font-bold text-blue-600 text-sm">Q1 / 5</span>
+                        <div class="w-1/2 bg-slate-200 border border-slate-900 h-3">
+                            <div id="quiz-progress" class="bg-blue-600 h-full w-1/5 transition-all duration-300"></div>
+                        </div>
+                    </div>
+
+                    <h3 id="quiz-question-title" class="text-lg md:text-xl font-bold mb-6 text-center text-slate-900 min-h-[48px] flex items-center justify-center">
+                        질문 불러오는 중...
+                    </h3>
+
+                    <div id="quiz-options" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+                        <!-- Dynamic quiz options -->
+                    </div>
+                </div>
+
+                <!-- Quiz Results Display -->
+                <div id="quiz-result" class="hidden max-w-4xl mx-auto my-6">
+                    <div class="bg-slate-900 text-white pixel-card p-5 mb-6 text-center">
+                        <h2 class="text-xl md:text-2xl font-bold mb-1 flex items-center justify-center gap-2">
+                            🎉 맞춤 매칭 결과 TOP 3
+                        </h2>
+                        <p class="text-xs text-slate-300">선택한 성별·세대 조건을 100% 만족하는 최적의 아이돌 후보입니다.</p>
+                    </div>
+
+                    <div id="top-matches-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <!-- Dynamic Top 3 match cards -->
+                    </div>
+
+                    <div class="flex justify-center gap-3">
+                        <button onclick="startQuiz()" class="pixel-btn px-5 py-2.5 bg-white text-slate-900 font-bold text-xs md:text-sm flex items-center gap-1.5">
+                            🔄 다시 테스트하기
+                        </button>
+                        <button onclick="switchTab('search')" class="pixel-btn px-5 py-2.5 bg-blue-600 text-white font-bold text-xs md:text-sm flex items-center gap-1.5">
+                            🔍 38명 전체 탐색
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: 취향 탐색 (SEARCH & MULTI-FILTER) -->
+            <section id="tab-search" class="hidden">
+                <div class="bg-white pixel-card p-4 md:p-5 mb-6">
+                    <!-- Search Input -->
+                    <div class="relative mb-4">
+                        <input type="text" id="search-input" oninput="renderIdols()" 
+                            placeholder="멤버 이름 또는 그룹명 검색 (예: 방탄소년단, 뉴진스, 세븐틴, 하니, 카리나)..." 
+                            class="w-full pl-9 pr-4 py-2.5 bg-slate-100 border-2 border-slate-900 focus:outline-none focus:bg-white text-sm">
+                        <span class="absolute left-3 top-3 text-sm">🔍</span>
+                    </div>
+
+                    <!-- Multi-Filter Selects -->
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5 text-xs">
+                        <div>
+                            <label class="block font-bold mb-1 text-slate-700">성별 👫</label>
+                            <select id="filter-gender" onchange="renderIdols()" class="w-full p-2 bg-white border-2 border-slate-900 font-bold">
+                                <option value="all">전체</option>
+                                <option value="F">♀️ 여성 아이돌</option>
+                                <option value="M">♂️ 남성 아이돌</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold mb-1 text-slate-700">동물상 🐾</label>
+                            <select id="filter-animal" onchange="renderIdols()" class="w-full p-2 bg-white border-2 border-slate-900 font-bold">
+                                <option value="all">전체 동물상</option>
+                                <option value="강아지">🐶 강아지상</option>
+                                <option value="고양이">🐱 고양이상</option>
+                                <option value="토끼">🐰 토끼상</option>
+                                <option value="여우">🦊 여우상</option>
+                                <option value="사슴">🦌 사슴상</option>
+                                <option value="공룡">🦖 공룡상</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold mb-1 text-slate-700">무대 컨셉 🎭</label>
+                            <select id="filter-concept" onchange="renderIdols()" class="w-full p-2 bg-white border-2 border-slate-900 font-bold">
+                                <option value="all">전체 컨셉</option>
+                                <option value="청량·밝음">☀️ 청량·밝음</option>
+                                <option value="쿨·힙합">🕶️ 쿨·힙합</option>
+                                <option value="몽환·감성">🌙 몽환·감성</option>
+                                <option value="에너제틱">💥 에너제틱</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold mb-1 text-slate-700">포지션 🎤</label>
+                            <select id="filter-position" onchange="renderIdols()" class="w-full p-2 bg-white border-2 border-slate-900 font-bold">
+                                <option value="all">전체 포지션</option>
+                                <option value="보컬">🎤 보컬</option>
+                                <option value="댄스">💃 댄스</option>
+                                <option value="랩">🎧 랩</option>
+                                <option value="올라운더">🌟 올라운더</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold mb-1 text-slate-700">세대 🚀</label>
+                            <select id="filter-gen" onchange="renderIdols()" class="w-full p-2 bg-white border-2 border-slate-900 font-bold">
+                                <option value="all">전체 세대</option>
+                                <option value="3">⚡ 3세대</option>
+                                <option value="4">🚀 4세대</option>
+                                <option value="5">💫 5세대</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-200 text-xs">
+                        <span class="text-slate-700 font-bold">조회 결과: <span id="idol-count" class="text-blue-600 font-extrabold">38</span>명</span>
+                        <button onclick="resetFilters()" class="text-slate-600 underline font-bold hover:text-slate-900 flex items-center gap-1">
+                            🧹 필터 초기화
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Idol Cards Grid -->
+                <div id="idol-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- Dynamic Idol Cards -->
+                </div>
+            </section>
+
+            <!-- TAB 3: 내 보관함 (FAVORITES) -->
+            <section id="tab-fav" class="hidden">
+                <div class="bg-white pixel-card p-5 mb-6 text-center">
+                    <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center justify-center gap-2">
+                        💾 내가 찜한 최애 보관함
+                    </h2>
+                    <p class="text-xs text-slate-600">관심 아이돌로 등록해 둔 멤버 목록입니다.</p>
+                </div>
+
+                <div id="fav-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- Dynamic Favorites -->
+                </div>
+
+                <div id="fav-empty" class="hidden bg-white pixel-card p-10 text-center max-w-md mx-auto my-8">
+                    <p class="font-bold text-slate-900 mb-2 text-base">보관함이 비어있습니다 🫙</p>
+                    <p class="text-xs text-slate-500 mb-4">탐색 목록에서 ❤️ 버튼을 눌러 나의 최애 아이돌을 보관해보세요.</p>
+                    <button onclick="switchTab('search')" class="pixel-btn px-4 py-2 bg-blue-600 text-white font-bold text-xs inline-flex items-center gap-1">
+                        🔍 아이돌 탐색하러 가기
+                    </button>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- IDOL DETAIL & PHOTOCARD MODAL -->
+    <div id="idol-modal" class="fixed inset-0 bg-slate-950/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white pixel-card max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 pixel-btn w-8 h-8 bg-slate-800 text-white font-bold flex items-center justify-center text-xs">
+                ✕
+            </button>
+
+            <div id="modal-header" class="flex gap-4 items-center mb-4 pb-4 border-b-2 border-slate-900">
+                <!-- Injected Avatar and title -->
+            </div>
+
+            <div id="modal-body" class="space-y-3 text-sm">
+                <!-- Dynamic profile specs -->
+            </div>
+
+            <div class="mt-6 pt-4 border-t-2 border-slate-900">
+                <h4 class="font-bold text-slate-900 mb-2 text-sm flex items-center gap-1.5">
+                    🎴 8-Bit 입덕 인증 포토카드 생성
+                </h4>
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="pc-nickname" placeholder="닉네임 입력 (예: 입덕완료)" 
+                        value="KPOP입덕러" maxlength="10"
+                        class="p-2 border-2 border-slate-900 bg-slate-100 text-xs w-full focus:outline-none">
+                    <button onclick="generatePhotocard()" class="pixel-btn px-3 py-1.5 bg-amber-500 text-slate-900 text-xs font-bold whitespace-nowrap">
+                        ⚙️ 카드 생성
+                    </button>
+                </div>
+
+                <div class="flex flex-col items-center justify-center bg-slate-100 p-3 border-2 border-dashed border-slate-900 mb-3">
+                    <canvas id="photocard-canvas" width="280" height="400" class="pixel-card shadow max-w-full h-auto"></canvas>
+                </div>
+
+                <div class="flex gap-2 justify-center">
+                    <button onclick="downloadPhotocard()" class="pixel-btn px-4 py-2 bg-blue-600 text-white font-bold text-xs flex items-center gap-1">
+                        💾 PNG 저장
+                    </button>
+                    <button onclick="copyPhotocardImage()" class="pixel-btn px-4 py-2 bg-slate-800 text-white font-bold text-xs flex items-center gap-1">
+                        📋 이미지 복사
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-300 border-t-4 border-slate-950 py-4 text-center text-xs mt-8">
+        <p class="font-bold mb-1">찾아돌 (Find-A-Dol) 👾 K-POP Idol Pixel Discovery Engine</p>
+        <p class="text-slate-400">Strict Gen & Gender Match • 38 Idol Database</p>
+    </footer>
+
+    <script>
+        const idolDatabase = [
+            // 3세대 남성
+            { id: 9, name: "정국", group: "방탄소년단", gender: "M", gen: 3, genTag: "3세대", animal: "토끼", concept: "에너제틱", position: "보컬", mbti: "INTP", color: "#1D4ED8", hairColor: "#0F172A", hairStyle: "wavy_crop", quote: "황금 막내의 탄탄한 라이브와 댄스", charms: ["올라운더 메인보컬", "압도적 라이브 가창력", "무대 위 폭발적 에너지"], meme: "황금막내 JK", legend: "Standing Next to You 메인" },
+            { id: 10, name: "뷔", group: "방탄소년단", gender: "M", gen: 3, genTag: "3세대", animal: "공룡", concept: "몽환·감성", position: "보컬", mbti: "INFP", color: "#B45309", hairColor: "#334155", hairStyle: "volume_perm", quote: "깊고 매력적인 중저음 음색", charms: ["깊은 중저음 허스키 톤", "예술적인 표정 연기", "클래식한 비주얼"], meme: "얼굴천재 V", legend: "Singularity & Slow Dancing" },
+            { id: 11, name: "호시", group: "세븐틴", gender: "M", gen: 3, genTag: "3세대", animal: "공룡", concept: "에너제틱", position: "댄스", mbti: "INFP", color: "#D97706", hairColor: "#B45309", hairStyle: "spiky_short", quote: "퍼포먼스팀 수장의 열정", charms: ["독보적 춤선과 안무 창작", "무대 위 폭발적 에너지", "호랑이에 진심인 열정"], meme: "10시 10분 호랑이", legend: "손오공 & Maestro 메인 브레이크" },
+            { id: 12, name: "민규", group: "세븐틴", gender: "M", gen: 3, genTag: "3세대", animal: "강아지", concept: "쿨·힙합", position: "랩", mbti: "ENTJ", color: "#3B82F6", hairColor: "#0F172A", hairStyle: "dandy_cut", quote: "우월한 피지컬과 묵직한 래핑", charms: ["시원시원한 피지컬", "묵직한 랩 톤", "다정하고 싹싹한 매력"], meme: "세븐틴의 만능 피지컬", legend: "HOT & 손오공 직캠" },
+            { id: 22, name: "재현", group: "NCT", gender: "M", gen: 3, genTag: "3세대", animal: "강아지", concept: "몽환·감성", position: "보컬", mbti: "ESTP", color: "#1E40AF", hairColor: "#1E293B", hairStyle: "dandy_cut", quote: "달콤한 R&B 메인보컬 보이스", charms: ["감미로운 R&B 보컬 음색", "귀공자 비주얼", "묵직한 피지컬"], meme: "재현 보컬 'Try Again'", legend: "영웅 & 질주 메인 보컬" },
+            { id: 23, name: "마크", group: "NCT", gender: "M", gen: 3, genTag: "3세대", animal: "공룡", concept: "쿨·힙합", position: "랩", mbti: "INFJ", color: "#1E293B", hairColor: "#0F172A", hairStyle: "short_crop", quote: "K-POP 대표 랩 딕션 올라운더", charms: ["박자감 끝판왕 래핑", "성실함과 엄청난 연습량", "무대 위 리듬감"], meme: "프로 데뷔러 마크", legend: "Cherry Bomb & Fact Check" },
+            { id: 24, name: "차은우", group: "아스트로", gender: "M", gen: 3, genTag: "3세대", animal: "사슴", concept: "청량·밝음", position: "보컬", mbti: "INFJ", color: "#0284C7", hairColor: "#0F172A", hairStyle: "dandy_cut", quote: "얼굴 천재의 아이콘", charms: ["대표 비주얼 아이콘", "감미롭고 차분한 음색", "다재다능 멀티 엔터테이너"], meme: "최최차차", legend: "니가 불어와 & Always You" },
+
+            // 3세대 여성
+            { id: 20, name: "제니", group: "블랙핑크", gender: "F", gen: 3, genTag: "3세대", animal: "고양이", concept: "쿨·힙합", position: "랩", mbti: "INFP", color: "#475569", hairColor: "#0F172A", hairStyle: "long_straight", quote: "트렌드세터 랩스타", charms: ["쫀득하고 강렬한 래핑", "독보적 스타일", "도도함과 미소 갭모에"], meme: "인간 샤넬 제니", legend: "SOLO & 코체라 메인 헤드라이너" },
+            { id: 21, name: "지수", group: "블랙핑크", gender: "F", gen: 3, genTag: "3세대", animal: "토끼", concept: "청량·밝음", position: "보컬", mbti: "ISTP", color: "#0284C7", hairColor: "#0F172A", hairStyle: "long_wavy", quote: "단아한 비주얼과 중저음 보컬", charms: ["단정하고 중독성 있는 보컬", "유쾌하고 털털한 성격", "클래식 비주얼"], meme: "꽃 (FLOWER) 챌린지", legend: "FLOWER & Shut Down 무대" },
+            { id: 33, name: "나연", group: "트와이스", gender: "F", gen: 3, genTag: "3세대", animal: "토끼", concept: "청량·밝음", position: "보컬", mbti: "ISTP", color: "#0EA5E9", hairColor: "#1E293B", hairStyle: "long_bangs", quote: "과즙상 센터 보컬", charms: ["시원한 탄산 보컬 라이브", "상큼한 미소", "확신의 고유나연 도입부"], meme: "POP! 손가락 챌린지", legend: "POP! & ABCD Solo 무대" },
+            { id: 34, name: "지효", group: "트와이스", gender: "F", gen: 3, genTag: "3세대", animal: "강아지", concept: "에너제틱", position: "보컬", mbti: "ESFP", color: "#D97706", hairColor: "#0F172A", hairStyle: "short_bob", quote: "시원한 성량과 리더십", charms: ["압도적인 성량과 가창력", "에너지 넘치는 퍼포먼스", "든든한 리더십"], meme: "갓지효의 카리스마", legend: "Killin' Me Good & Feel Special" },
+
+            // 4세대 남성
+            { id: 13, name: "필릭스", group: "스트레이 키즈", gender: "M", gen: 4, genTag: "4세대", animal: "여우", concept: "몽환·감성", position: "랩", mbti: "ENFP", color: "#0284C7", hairColor: "#F59E0B", hairStyle: "blond_part", quote: "초저음 킬링 파트의 대명사", charms: ["동화 속 비주얼", "반전 매력의 동굴 저음", "따뜻하고 무해한 성격"], meme: "쿡킹 썸 원 킹 킬링파트", legend: "神메뉴 & 락 (樂) 직캠" },
+            { id: 14, name: "현진", group: "스트레이 키즈", gender: "M", gen: 4, genTag: "4세대", animal: "고양이", concept: "쿨·힙합", position: "댄스", mbti: "ESTP", color: "#334155", hairColor: "#0F172A", hairStyle: "long_halfup", quote: "아우라의 메인 댄서", charms: ["몰입감 높은 표정 연기", "유려하고 매끄러운 춤선", "예술적 감각"], meme: "화백 현진", legend: "특 & Psycho 스페셜 무대" },
+            { id: 27, name: "수빈", group: "투모로우바이투게더", gender: "M", gen: 4, genTag: "4세대", animal: "토끼", concept: "청량·밝음", position: "보컬", mbti: "ISFP", color: "#3B82F6", hairColor: "#334155", hairStyle: "dandy_cut", quote: "달콤한 보컬과 토끼상 리더", charms: ["따뜻하고 미성인 보컬", "키 큰 매력의 토끼 리더", "다정한 무대 매너"], meme: "뮤직뱅크 MC 아콩 커플", legend: "5시 53분의 하늘에서 발견한 너와 나" },
+            { id: 28, name: "연준", group: "투모로우바이투게더", gender: "M", gen: 4, genTag: "4세대", animal: "여우", concept: "쿨·힙합", position: "댄스", mbti: "ENFP", color: "#1E293B", hairColor: "#0F172A", hairStyle: "curtain_long", quote: "올라운더 댄서", charms: ["트렌디한 춤선과 랩", "패션 감각과 모델 비율", "표정 장인"], meme: "빅전연 (전설의 연습생)", legend: "Good Boy Gone Bad & Sugar Rush Ride" },
+            { id: 35, name: "성훈", group: "엔하이픈", gender: "M", gen: 4, genTag: "4세대", animal: "여우", concept: "몽환·감성", position: "댄스", mbti: "ISTJ", color: "#3B82F6", hairColor: "#0F172A", hairStyle: "clean_part", quote: "피겨 출신의 유려한 춤선", charms: ["피겨 스케이팅 출신의 유연성", "귀티 나는 비주얼", "깔끔한 동선"], meme: "얼음왕자 성훈", legend: "Bite Me & Sweet Venom" },
+
+            // 4세대 여성
+            { id: 1, name: "하니", group: "뉴진스", gender: "F", gen: 4, genTag: "4세대", animal: "토끼", concept: "청량·밝음", position: "보컬", mbti: "INFP", color: "#60A5FA", hairColor: "#1E293B", hairStyle: "long_bangs", quote: "감성 음색 보컬", charms: ["유니크한 감성 보컬", "자연스러운 무대 표정", "글로벌 공감 매력"], meme: "Hype Boy 챌린지", legend: "Hype Boy & Ditto 무대 직캠" },
+            { id: 2, name: "민지", group: "뉴진스", gender: "F", gen: 4, genTag: "4세대", animal: "강아지", concept: "청량·밝음", position: "올라운더", mbti: "ESTJ", color: "#2563EB", hairColor: "#0F172A", hairStyle: "long_straight", quote: "중저음 음색과 단정한 비주얼", charms: ["단정하고 깔끔한 보컬", "믿음직한 리더십", "클래식 비주얼"], meme: "뉴진스의 든든한 리더", legend: "ETA & Attention 스페셜 무대" },
+            { id: 5, name: "안유진", group: "아이브", gender: "F", gen: 4, genTag: "4세대", animal: "강아지", concept: "에너제틱", position: "올라운더", mbti: "ISTP", color: "#1D4ED8", hairColor: "#1E293B", hairStyle: "short_bob", quote: "파워풀 보컬과 명랑 리더십", charms: ["시원시원한 가창력", "예능감과 무대 아우라", "만능 올라운더"], meme: "지락실 맑은 눈의 광인", legend: "LOVE DIVE & HEYA 엔딩 요정" },
+            { id: 6, name: "장원영", group: "아이브", gender: "F", gen: 4, genTag: "4세대", animal: "토끼", concept: "청량·밝음", position: "올라운더", mbti: "SFP", color: "#93C5FD", hairColor: "#1E293B", hairStyle: "twin_tail", quote: "센터 비주얼과 무대 매너", charms: ["독보적 센터 아우라", "프로페셔널 무대 매너", "긍정적 멘탈"], meme: "원영적 사고 (럭키비키)", legend: "I AM 런웨이 도입부 직캠" },
+            { id: 7, name: "카리나", group: "에스파", gender: "F", gen: 4, genTag: "4세대", animal: "고양이", concept: "쿨·힙합", position: "댄스", mbti: "ENFP", color: "#1E3A8A", hairColor: "#0F172A", hairStyle: "long_wavy", quote: "샤프한 비주얼과 메인댄서", charms: ["완벽한 비율과 춤선", "따뜻한 성격", "메인댄서 퍼포먼스"], meme: "AI 비주얼의 대명사", legend: "Supernova & Drama 무대" },
+            { id: 8, name: "윈터", group: "에스파", gender: "F", gen: 4, genTag: "4세대", animal: "강아지", concept: "몽환·감성", position: "보컬", mbti: "ISFJ", color: "#38BDF8", hairColor: "#E2E8F0", hairStyle: "short_bangs", quote: "단단한 고음 라이브", charms: ["청량하고 단단한 보컬", "무대 위 카리스마", "반전 귀여움"], meme: "Step Back 유영진의 딸 파트", legend: "Armageddon & Drama 라이브" },
+            { id: 15, name: "김채원", group: "르세라핌", gender: "F", gen: 4, genTag: "4세대", animal: "여우", concept: "에너제틱", position: "올라운더", mbti: "ISTP", color: "#059669", hairColor: "#0F172A", hairStyle: "short_bob", quote: "음색과 퍼포먼스를 겸비한 리더", charms: ["트렌디한 보컬", "단발 스타일 아이콘", "당찬 안무 퍼포먼스"], meme: "너 내 도도가 되라!", legend: "EASY & Antifragile 무대" },
+            { id: 16, name: "카즈하", group: "르세라핌", gender: "F", gen: 4, genTag: "4세대", animal: "사슴", concept: "몽환·감성", position: "댄스", mbti: "ENFP", color: "#10B981", hairColor: "#1E293B", hairStyle: "long_straight", quote: "발레 전공자의 우아한 춤선", charms: ["우아하고 단아한 분위기", "유연하고 유려한 선", "중저음 래핑 파트"], meme: "FEARLESS 발레 다리찢기", legend: "FEARLESS & UNFORGIVEN" },
+
+            // 5세대 남성
+            { id: 3, name: "원빈", group: "라이즈", gender: "M", gen: 5, genTag: "5세대", animal: "고양이", concept: "쿨·힙합", position: "댄스", mbti: "INFJ", color: "#475569", hairColor: "#0F172A", hairStyle: "curtain_long", quote: "센터 퍼포먼스와 강렬한 춤선", charms: ["센터 춤선의 정석", "감각적인 기타 연주", "시선 사로잡는 킬링파트"], meme: "겟어기타 도입부 센터", legend: "Get A Guitar & Boom Boom Bass" },
+            { id: 4, name: "앤톤", group: "라이즈", gender: "M", gen: 5, genTag: "5세대", animal: "사슴", concept: "몽환·감성", position: "보컬", mbti: "INTP", color: "#64748B", hairColor: "#334155", hairStyle: "soft_wavy", quote: "서정 보컬과 첼로 연주", charms: ["따뜻하고 맑은 음색", "음악적 프로듀싱 감각", "수줍은 반전 매력"], meme: "수영선수 출신 첼리스트", legend: "Love 119 무대 직캠" },
+            { id: 17, name: "신유", group: "투어스", gender: "M", gen: 5, genTag: "5세대", animal: "사슴", concept: "청량·밝음", position: "올라운더", mbti: "INFP", color: "#0EA5E9", hairColor: "#1E293B", hairStyle: "dandy_cut", quote: "청량 만찢남 비주얼", charms: ["청량한 비주얼", "부드러운 음색과 비율", "수줍지만 확실한 센터"], meme: "첫 만남은 너무 어려워 도입부", legend: "첫 만남은 계획대로 되지 않아" },
+            { id: 18, name: "성한빈", group: "제로베이스원", gender: "M", gen: 5, genTag: "5세대", animal: "강아지", concept: "청량·밝음", position: "댄스", mbti: "ENFJ", color: "#2563EB", hairColor: "#0F172A", hairStyle: "clean_part", quote: "정석 리더이자 메인댄서", charms: ["정석적인 리더십과 보컬", "섬세하고 화려한 춤선", "따뜻한 성품"], meme: "보이즈플래닛 성한빈", legend: "In Bloom & Feel the POP" },
+            { id: 19, name: "장하오", group: "제로베이스원", gender: "M", gen: 5, genTag: "5세대", animal: "고양이", concept: "몽환·감성", position: "보컬", mbti: "ISFP", color: "#6366F1", hairColor: "#0F172A", hairStyle: "soft_wavy", quote: "감성 보컬과 바이올린 연주", charms: ["감미롭고 감성적인 보컬", "바이올린 전공 스펙", "우아한 센터 아우라"], meme: "센터 하오의 킬링파트", legend: "Over Me & GOOD SO BAD" },
+            { id: 31, name: "예준", group: "플레이브", gender: "M", gen: 5, genTag: "5세대", animal: "강아지", concept: "몽환·감성", position: "보컬", mbti: "ISJ", color: "#0284C7", hairColor: "#1E293B", hairStyle: "dandy_cut", quote: "작사/작곡 능력을 갖춘 청량 리더", charms: ["감미로운 미성 보컬", "직접 작곡하는 음악성", "청량감"], meme: "플레이브 예준", legend: "WAY 4 LUV & 여섯 번째 여름" },
+            { id: 32, name: "노아", group: "플레이브", gender: "M", gen: 5, genTag: "5세대", animal: "고양이", concept: "몽환·감성", position: "보컬", mbti: "ISTP", color: "#6366F1", hairColor: "#E2E8F0", hairStyle: "soft_wavy", quote: "폭발적인 고음 메인보컬", charms: ["3옥타브 넘나드는 고음", "샤프한 비주얼", "반전 예능감"], meme: "공주님 노아", legend: "WAY 4 LUV 고음 파트" },
+            { id: 36, name: "명재현", group: "보이넥스트도어", gender: "M", gen: 5, genTag: "5세대", animal: "강아지", concept: "에너제틱", position: "랩", mbti: "ENFP", color: "#F59E0B", hairColor: "#1E293B", hairStyle: "spiky_short", quote: "재치 넘치는 리더이자 래퍼", charms: ["넘치는 제스처와 에너지", "위트 있는 랩 메이킹", "비타민 리더"], meme: "엠카 MC 재현이", legend: "One and Only & Earth, Wind & Fire" },
+
+            // 5세대 여성
+            { id: 25, name: "모카", group: "아일릿", gender: "F", gen: 5, genTag: "5세대", animal: "토끼", concept: "청량·밝음", position: "댄스", mbti: "ISFP", color: "#38BDF8", hairColor: "#1E293B", hairStyle: "twin_tail", quote: "디테일한 표정 연기자", charms: ["무대 표정 장인", "상큼한 매력", "중독성 있는 춤선"], meme: "마그네틱 5초 킬링파트", legend: "Magnetic 파트 직캠" },
+            { id: 26, name: "아현", group: "베이비몬스터", gender: "F", gen: 5, genTag: "5세대", animal: "공룡", concept: "에너제틱", position: "올라운더", mbti: "ISTJ", color: "#DC2626", hairColor: "#0F172A", hairStyle: "long_wavy", quote: "폭발적인 고음 올라운더", charms: ["사이다 고음 파워 보컬", "카리스마 래핑", "무대 샤우팅"], meme: "SHEESH 폭풍 3단 고음", legend: "SHEESH & BATTER UP" },
+            { id: 29, name: "마젠타", group: "QWER", gender: "F", gen: 5, genTag: "5세대", animal: "강아지", concept: "에너제틱", position: "보컬", mbti: "INFP", color: "#059669", hairColor: "#B45309", hairStyle: "long_wavy", quote: "베이스 연주와 밝은 에너지", charms: ["파워풀한 베이스 연주", "밝은 에너지", "밴드 무대 몰입감"], meme: "고민중독 베이시스트", legend: "고민중독 & 내 이름 맑음" },
+            { id: 30, name: "쵸단", group: "QWER", gender: "F", gen: 5, genTag: "5세대", animal: "고양이", concept: "에너제틱", position: "보컬", mbti: "INTP", color: "#2563EB", hairColor: "#0F172A", hairStyle: "short_bob", quote: "드럼 전공 리더이자 보컬", charms: ["강렬한 드럼 비트", "맑은 보컬 음색", "밴드 리더의 책임감"], meme: "드럼 치는 보컬 쵸단", legend: "Discord & 고민중독 드럼" },
+            { id: 37, name: "쥴리", group: "키스오브라이프", gender: "F", gen: 5, genTag: "5세대", animal: "고양이", concept: "쿨·힙합", position: "랩", mbti: "ENFP", color: "#9333EA", hairColor: "#0F172A", hairStyle: "long_wavy", quote: "힙합 래핑과 카리스마", charms: ["탄탄한 힙합 플로우 랩", "매력적인 아우라", "글로벌 힙합 감성"], meme: "키오라 쥴리", legend: "Sticky & Midas Touch" },
+            { id: 38, name: "나띠", group: "키스오브라이프", gender: "F", gen: 5, genTag: "5세대", animal: "여우", concept: "에너제틱", position: "댄스", mbti: "INFJ", color: "#EC4899", hairColor: "#1E293B", hairStyle: "long_straight", quote: "독보적인 댄스 그루브", charms: ["미친 댄스 그루브", "힙한 보컬 음색", "올라운더 퍼포머"], meme: "Sugarcoat 솔로 신드롬", legend: "Sugarcoat & Sticky 직캠" }
+        ];
+
+        // Direct Q&A Options without extra adjectives
+        const quizQuestions = [
+            {
+                id: 1, title: "1. 👫 선호하는 아이돌 성별",
+                options: [
+                    { label: "♂️ 남성 아이돌", value: "M" },
+                    { label: "♀️ 여성 아이돌", value: "F" },
+                    { label: "🌈 성별 상관없음", value: "all" }
+                ]
+            },
+            {
+                id: 2, title: "2. 🚀 선호하는 K-POP 세대",
+                options: [
+                    { label: "⚡ 3세대 (방탄소년단, 블랙핑크, 세븐틴 등)", value: "3" },
+                    { label: "🚀 4세대 (뉴진스, 아이브, 에스파, 스트레이키즈 등)", value: "4" },
+                    { label: "💫 5세대 (라이즈, 투어스, 제베원, QWER 등)", value: "5" },
+                    { label: "🌐 세대 상관없음", value: "all" }
+                ]
+            },
+            {
+                id: 3, title: "3. 🐾 선호하는 이목구비 스타일 (동물상)",
+                options: [
+                    { label: "🐶 강아지상", value: "강아지" },
+                    { label: "🐱 고양이상", value: "고양이" },
+                    { label: "🐰 토끼상", value: "토끼" },
+                    { label: "🦊 여우상", value: "여우" },
+                    { label: "🦌 사슴상", value: "사슴" },
+                    { label: "🦖 공룡상", value: "공룡" }
+                ]
+            },
+            {
+                id: 4, title: "4. 🎭 선호하는 무대 컨셉",
+                options: [
+                    { label: "☀️ 청량·밝음", value: "청량·밝음" },
+                    { label: "🕶️ 쿨·힙합", value: "쿨·힙합" },
+                    { label: "🌙 몽환·감성", value: "몽환·감성" },
+                    { label: "💥 에너제틱", value: "에너제틱" }
+                ]
+            },
+            {
+                id: 5, title: "5. 🎤 핵심 매력 포인트 (포지션)",
+                options: [
+                    { label: "🎤 보컬 (음색 / 가창력)", value: "보컬" },
+                    { label: "💃 댄스 (춤선 / 무대 퍼포먼스)", value: "댄스" },
+                    { label: "🎧 랩 (플로우 / 래핑)", value: "랩" },
+                    { label: "🌟 올라운더 (다재다능)", value: "올라운더" }
+                ]
+            }
+        ];
+
+        let currentQuizIndex = 0;
+        let quizAnswers = {};
+        let favorites = JSON.parse(localStorage.getItem('findadol_favs') || '[]');
+        let selectedIdolForModal = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updateFavCount();
+            renderIdols();
+        });
+
+        function getPixelAvatarSVG(idol, size = 80) {
+            const bgCol = idol.color || '#334155';
+            const hair = idol.hairColor || '#0F172A';
+            const isFemale = idol.gender === 'F';
+            const style = idol.hairStyle || 'dandy_cut';
+
+            let hairSvg = '';
+            let faceContourSvg = '';
+            let accessorySvg = '';
+
+            if (isFemale) {
+                faceContourSvg = `
+                    <rect x="30" y="26" width="40" height="38" fill="#FFE4E6" />
+                    <rect x="35" y="64" width="30" height="8" fill="#FFE4E6" />
+                    <rect x="32" y="48" width="6" height="4" fill="#FDA4AF" opacity="0.8"/>
+                    <rect x="62" y="48" width="6" height="4" fill="#FDA4AF" opacity="0.8"/>
+                `;
+
+                if (style === 'twin_tail') {
+                    hairSvg = `
+                        <rect x="14" y="24" width="12" height="48" fill="${hair}" />
+                        <rect x="74" y="24" width="12" height="48" fill="${hair}" />
+                        <rect x="26" y="20" width="48" height="14" fill="${hair}" />
+                    `;
+                    accessorySvg = `
+                        <rect x="22" y="22" width="6" height="6" fill="#F43F5E" />
+                        <rect x="72" y="22" width="6" height="6" fill="#F43F5E" />
+                    `;
+                } else if (style === 'short_bob') {
+                    hairSvg = `
+                        <rect x="22" y="20" width="56" height="45" fill="${hair}" />
+                        <rect x="32" y="28" width="36" height="8" fill="#FFE4E6" />
+                    `;
+                } else if (style === 'long_wavy') {
+                    hairSvg = `
+                        <rect x="20" y="20" width="60" height="58" fill="${hair}" />
+                        <rect x="30" y="32" width="40" height="36" fill="#FFE4E6" />
+                    `;
+                } else {
+                    hairSvg = `
+                        <rect x="22" y="20" width="56" height="58" fill="${hair}" />
+                        <rect x="28" y="20" width="44" height="12" fill="${hair}" />
+                    `;
+                    accessorySvg = `<rect x="24" y="24" width="6" height="4" fill="#38BDF8" />`;
+                }
+            } else {
+                faceContourSvg = `
+                    <rect x="30" y="26" width="40" height="40" fill="#FEF08A" />
+                    <rect x="34" y="66" width="32" height="8" fill="#FEF08A" />
+                `;
+
+                if (style === 'curtain_long') {
+                    hairSvg = `
+                        <rect x="26" y="18" width="48" height="22" fill="${hair}" />
+                        <rect x="24" y="26" width="10" height="24" fill="${hair}" />
+                        <rect x="66" y="26" width="10" height="24" fill="${hair}" />
+                        <rect x="46" y="24" width="8" height="10" fill="#FEF08A" />
+                    `;
+                } else if (style === 'spiky_short') {
+                    hairSvg = `
+                        <rect x="28" y="14" width="44" height="20" fill="${hair}" />
+                        <rect x="22" y="18" width="8" height="10" fill="${hair}" />
+                        <rect x="70" y="18" width="8" height="10" fill="${hair}" />
+                        <rect x="30" y="22" width="40" height="8" fill="${hair}" />
+                    `;
+                } else {
+                    hairSvg = `
+                        <rect x="26" y="18" width="48" height="20" fill="${hair}" />
+                        <rect x="24" y="24" width="8" height="18" fill="${hair}" />
+                        <rect x="68" y="24" width="8" height="18" fill="${hair}" />
+                    `;
+                }
+            }
+
+            let earSvg = '';
+            if (idol.animal === '토끼') {
+                earSvg = `
+                    <rect x="28" y="2" width="8" height="20" fill="#FFFFFF" stroke="#0F172A" stroke-width="2"/>
+                    <rect x="64" y="2" width="8" height="20" fill="#FFFFFF" stroke="#0F172A" stroke-width="2"/>
+                    <rect x="30" y="6" width="4" height="12" fill="#F43F5E"/>
+                    <rect x="66" y="6" width="4" height="12" fill="#F43F5E"/>
+                `;
+            } else if (idol.animal === '고양이') {
+                earSvg = `
+                    <polygon points="22,22 32,4 42,22" fill="${hair}" stroke="#0F172A" stroke-width="2"/>
+                    <polygon points="58,22 68,4 78,22" fill="${hair}" stroke="#0F172A" stroke-width="2"/>
+                `;
+            } else if (idol.animal === '여우') {
+                earSvg = `
+                    <polygon points="20,20 30,6 38,20" fill="#D97706" stroke="#0F172A" stroke-width="2"/>
+                    <polygon points="62,20 70,6 80,20" fill="#D97706" stroke="#0F172A" stroke-width="2"/>
+                `;
+            }
+
+            const clothingSvg = isFemale ? `
+                <rect x="26" y="74" width="48" height="26" fill="#0F172A" />
+                <rect x="36" y="74" width="28" height="14" fill="#38BDF8" />
+            ` : `
+                <rect x="20" y="74" width="60" height="26" fill="#0F172A" />
+                <rect x="42" y="74" width="16" height="26" fill="#E2E8F0" />
+                <rect x="46" y="80" width="8" height="12" fill="#2563EB" />
+            `;
+
+            return `
+            <svg width="${size}" height="${size}" viewBox="0 0 100 100" class="pixel-card bg-slate-100">
+                <rect width="100" height="100" fill="${bgCol}" />
+                <rect x="6" y="6" width="88" height="88" fill="none" stroke="#FFFFFF" stroke-dasharray="4" stroke-width="2" opacity="0.3"/>
+                
+                ${earSvg}
+                ${hairSvg}
+                ${faceContourSvg}
+
+                <rect x="38" y="40" width="6" height="10" fill="#0F172A" />
+                <rect x="56" y="40" width="6" height="10" fill="#0F172A" />
+                <rect x="40" y="42" width="2" height="3" fill="#FFFFFF" />
+                <rect x="58" y="42" width="2" height="3" fill="#FFFFFF" />
+
+                <rect x="46" y="56" width="8" height="3" fill="#0F172A" />
+
+                ${accessorySvg}
+                ${clothingSvg}
+            </svg>`;
+        }
+
+        function switchTab(tab) {
+            document.getElementById('tab-quiz').classList.add('hidden');
+            document.getElementById('tab-search').classList.add('hidden');
+            document.getElementById('tab-fav').classList.add('hidden');
+
+            document.getElementById('nav-quiz').className = "pixel-btn px-4 py-2 bg-slate-700 text-white font-bold text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5";
+            document.getElementById('nav-search').className = "pixel-btn px-4 py-2 bg-slate-700 text-white font-bold text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5";
+            document.getElementById('nav-fav').className = "pixel-btn px-4 py-2 bg-slate-700 text-white font-bold text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5";
+
+            if (tab === 'quiz') {
+                document.getElementById('tab-quiz').classList.remove('hidden');
+                document.getElementById('nav-quiz').className = "pixel-btn px-4 py-2 bg-amber-500 text-slate-900 font-bold text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5";
+            } else if (tab === 'search') {
+                document.getElementById('tab-search').classList.remove('hidden');
+                document.getElementById('nav-search').className = "pixel-btn px-4 py-2 bg-blue-600 text-white font-bold text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5";
+            } else if (tab === 'fav') {
+                document.getElementById('tab-fav').classList.remove('hidden');
+                document.getElementById('nav-fav').className = "pixel-btn px-4 py-2 bg-blue-600 text-white font-bold text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5";
+                renderFavorites();
+            }
+        }
+
+        function startQuiz() {
+            currentQuizIndex = 0;
+            quizAnswers = {};
+            document.getElementById('quiz-intro').classList.add('hidden');
+            document.getElementById('quiz-result').classList.add('hidden');
+            document.getElementById('quiz-body').classList.remove('hidden');
+            renderQuizQuestion();
+        }
+
+        function renderQuizQuestion() {
+            const q = quizQuestions[currentQuizIndex];
+            document.getElementById('quiz-step-text').innerText = `Q${currentQuizIndex + 1} / ${quizQuestions.length}`;
+            document.getElementById('quiz-progress').style.width = `${((currentQuizIndex + 1) / quizQuestions.length) * 100}%`;
+            document.getElementById('quiz-question-title').innerText = q.title;
+
+            const optContainer = document.getElementById('quiz-options');
+            optContainer.innerHTML = '';
+
+            q.options.forEach((opt) => {
+                const btn = document.createElement('button');
+                btn.className = "pixel-btn p-3.5 text-left bg-slate-100 hover:bg-slate-200 font-bold text-xs md:text-sm text-slate-900 flex items-center justify-between";
+                btn.innerHTML = `<span>${opt.label}</span> <span class="text-xs text-blue-600">▶</span>`;
+                btn.onclick = () => selectQuizAnswer(q.id, opt.value);
+                optContainer.appendChild(btn);
+            });
+        }
+
+        function selectQuizAnswer(qId, value) {
+            quizAnswers[qId] = value;
+            if (currentQuizIndex < quizQuestions.length - 1) {
+                currentQuizIndex++;
+                renderQuizQuestion();
+            } else {
+                calculateQuizResult();
+            }
+        }
+
+        function calculateQuizResult() {
+            const userGender = quizAnswers[1];
+            const userGen = quizAnswers[2];
+            const userAnimal = quizAnswers[3];
+            const userConcept = quizAnswers[4];
+            const userPosition = quizAnswers[5];
+
+            // 1. HARD FILTER (Strict Requirement for Gender and Generation)
+            let eligible = idolDatabase.filter(idol => {
+                // Gender match
+                if (userGender !== 'all' && idol.gender !== userGender) {
+                    return false;
+                }
+                // Generation match (e.g., Selecting "3" MUST NOT match Gen 4 or 5)
+                if (userGen !== 'all' && Math.floor(idol.gen) !== parseInt(userGen)) {
+                    return false;
+                }
+                return true;
+            });
+
+            // Safety fallback if no candidates match both strict filters
+            if (eligible.length === 0) {
+                eligible = idolDatabase.filter(idol => {
+                    if (userGender !== 'all' && idol.gender !== userGender) return false;
+                    return true;
+                });
+            }
+
+            // 2. SOFT TRAIT SCORING (Animal, Concept, Position)
+            const scoredList = eligible.map(idol => {
+                let score = 65; // Base score for satisfying hard requirements
+
+                if (userAnimal && idol.animal.includes(userAnimal)) score += 15;
+                if (userConcept && idol.concept === userConcept) score += 10;
+                if (userPosition && idol.position === userPosition) score += 9;
+
+                const matchRate = Math.min(99, Math.max(70, score));
+                return { ...idol, matchRate };
+            });
+
+            // Sort by highest match rate
+            scoredList.sort((a, b) => b.matchRate - a.matchRate);
+            
+            triggerConfetti();
+            displayQuizResult(scoredList.slice(0, 3));
+        }
+
+        function displayQuizResult(top3) {
+            document.getElementById('quiz-body').classList.add('hidden');
+            document.getElementById('quiz-result').classList.remove('hidden');
+
+            const grid = document.getElementById('top-matches-grid');
+            grid.innerHTML = '';
+
+            top3.forEach((idol, index) => {
+                const card = document.createElement('div');
+                card.className = "bg-white pixel-card p-4 flex flex-col items-center text-center relative";
+                card.innerHTML = `
+                    <div class="absolute -top-3 bg-slate-900 text-white border border-slate-900 px-2 py-0.5 text-[10px] font-bold">
+                        MATCH #${index + 1}
+                    </div>
+                    <div class="mt-2 mb-2">
+                        ${getPixelAvatarSVG(idol, 84)}
+                    </div>
+                    <div class="bg-blue-600 text-white font-bold text-xs px-2.5 py-0.5 mb-1">
+                        매칭률 ${idol.matchRate}%
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900">${idol.name}</h3>
+                    <p class="text-xs text-slate-500 mb-2">${idol.group} (${idol.genTag})</p>
+
+                    <div class="text-xs space-y-1 mb-3 text-left w-full bg-slate-100 p-2.5 border border-slate-900">
+                        <div><b>속성:</b> ${idol.animal}상 (${idol.gender === 'F' ? '여성' : '남성'})</div>
+                        <div><b>컨셉:</b> ${idol.concept}</div>
+                        <div><b>포지션:</b> ${idol.position}</div>
+                    </div>
+
+                    <button onclick="openModal(${idol.id})" class="pixel-btn px-3 py-2 bg-amber-500 text-slate-900 text-xs font-bold w-full mt-auto flex items-center justify-center gap-1">
+                        ✨ 입덕 정보 상세보기
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderIdols() {
+            const searchVal = document.getElementById('search-input').value.trim().toLowerCase();
+            const genderVal = document.getElementById('filter-gender').value;
+            const animalVal = document.getElementById('filter-animal').value;
+            const conceptVal = document.getElementById('filter-concept').value;
+            const posVal = document.getElementById('filter-position').value;
+            const genVal = document.getElementById('filter-gen').value;
+
+            const filtered = idolDatabase.filter(idol => {
+                const matchesSearch = idol.name.toLowerCase().includes(searchVal) || 
+                                      idol.group.toLowerCase().includes(searchVal);
+                const matchesGender = genderVal === 'all' || idol.gender === genderVal;
+                const matchesAnimal = animalVal === 'all' || idol.animal.includes(animalVal);
+                const matchesConcept = conceptVal === 'all' || idol.concept === conceptVal;
+                const matchesPos = posVal === 'all' || idol.position === posVal;
+                const matchesGen = genVal === 'all' || Math.floor(idol.gen) == parseInt(genVal);
+
+                return matchesSearch && matchesGender && matchesAnimal && matchesConcept && matchesPos && matchesGen;
+            });
+
+            document.getElementById('idol-count').innerText = filtered.length;
+            const grid = document.getElementById('idol-grid');
+            grid.innerHTML = '';
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full bg-white pixel-card p-8 text-center text-slate-600">
+                        <p class="font-bold text-base mb-1">검색 조건에 맞는 아이돌이 없습니다 🔍</p>
+                        <p class="text-xs">필터 항목을 조정해보시거나 검색어를 초기화해보세요.</p>
+                    </div>`;
+                return;
+            }
+
+            filtered.forEach(idol => {
+                const isFav = favorites.includes(idol.id);
+                const card = document.createElement('div');
+                card.className = "bg-white pixel-card p-3.5 flex flex-col justify-between";
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="bg-slate-200 border border-slate-900 px-1.5 py-0.5 text-[10px] font-bold">
+                                ${idol.genTag} • ${idol.animal}상
+                            </span>
+                            <button onclick="toggleFav(${idol.id})" class="text-sm font-bold hover:scale-125 transition-transform" title="찜하기">
+                                ${isFav ? '❤️' : '🤍'}
+                            </button>
+                        </div>
+                        <div class="flex justify-center mb-2">
+                            ${getPixelAvatarSVG(idol, 74)}
+                        </div>
+                        <h3 class="text-sm font-bold text-center text-slate-900">${idol.name}</h3>
+                        <p class="text-xs text-center text-slate-500 mb-2">${idol.group}</p>
+                        
+                        <div class="flex flex-wrap gap-1 justify-center text-[10px] mb-3">
+                            <span class="bg-slate-100 text-slate-800 px-1.5 py-0.5 border border-slate-300">${idol.concept}</span>
+                            <span class="bg-blue-50 text-blue-900 px-1.5 py-0.5 border border-blue-200">${idol.position}</span>
+                        </div>
+                    </div>
+
+                    <button onclick="openModal(${idol.id})" class="pixel-btn py-1.5 bg-slate-100 hover:bg-slate-200 text-xs font-bold w-full flex items-center justify-center gap-1">
+                        📖 입덕 카드
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function resetFilters() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('filter-gender').value = 'all';
+            document.getElementById('filter-animal').value = 'all';
+            document.getElementById('filter-concept').value = 'all';
+            document.getElementById('filter-position').value = 'all';
+            document.getElementById('filter-gen').value = 'all';
+            renderIdols();
+            showToast("필터가 초기화되었습니다 🧹", "info");
+        }
+
+        function toggleFav(idolId) {
+            const idol = idolDatabase.find(i => i.id === idolId);
+            if (favorites.includes(idolId)) {
+                favorites = favorites.filter(id => id !== idolId);
+                showToast(`${idol ? idol.name : '멤버'} 보관함 제외 💔`, "info");
+            } else {
+                favorites.push(idolId);
+                showToast(`${idol ? idol.name : '멤버'} 보관함 저장 ❤️`, "success");
+            }
+            localStorage.setItem('findadol_favs', JSON.stringify(favorites));
+            updateFavCount();
+            renderIdols();
+            if (!document.getElementById('tab-fav').classList.contains('hidden')) {
+                renderFavorites();
+            }
+        }
+
+        function updateFavCount() {
+            document.getElementById('fav-count').innerText = favorites.length;
+        }
+
+        function renderFavorites() {
+            const grid = document.getElementById('fav-grid');
+            const emptyState = document.getElementById('fav-empty');
+            grid.innerHTML = '';
+
+            const favIdols = idolDatabase.filter(idol => favorites.includes(idol.id));
+
+            if (favIdols.length === 0) {
+                emptyState.classList.remove('hidden');
+                grid.classList.add('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                grid.classList.remove('hidden');
+
+                favIdols.forEach(idol => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white pixel-card p-3.5 flex flex-col justify-between";
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="bg-slate-900 text-white px-1.5 py-0.5 text-[10px] font-bold">
+                                    ${idol.group}
+                                </span>
+                                <button onclick="toggleFav(${idol.id})" class="text-xs text-red-600 font-bold hover:underline">
+                                    삭제
+                                </button>
+                            </div>
+                            <div class="flex justify-center mb-2">
+                                ${getPixelAvatarSVG(idol, 74)}
+                            </div>
+                            <h3 class="text-sm font-bold text-center text-slate-900">${idol.name}</h3>
+                            <p class="text-xs text-center text-slate-500 mb-2">${idol.animal}상 • ${idol.mbti}</p>
+                        </div>
+                        <button onclick="openModal(${idol.id})" class="pixel-btn py-1.5 bg-blue-600 text-white text-xs font-bold w-full flex items-center justify-center gap-1">
+                            🎴 포토카드 생성
+                        </button>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+        }
+
+        function openModal(idolId) {
+            selectedIdolForModal = idolDatabase.find(i => i.id === idolId);
+            if (!selectedIdolForModal) return;
+
+            const idol = selectedIdolForModal;
+            
+            document.getElementById('modal-header').innerHTML = `
+                <div>${getPixelAvatarSVG(idol, 70)}</div>
+                <div>
+                    <div class="flex items-center gap-1.5 mb-1 text-[10px]">
+                        <span class="bg-slate-200 border border-slate-900 px-1 py-0.5 font-bold">${idol.genTag}</span>
+                        <span class="bg-blue-100 border border-slate-900 px-1 py-0.5 font-bold text-blue-900">${idol.group}</span>
+                        <span class="bg-amber-100 border border-slate-900 px-1 py-0.5 font-bold text-amber-900">${idol.gender === 'F' ? '♀️ 여성' : '♂️ 남성'}</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900">${idol.name}</h3>
+                    <p class="text-xs text-slate-600">${idol.animal}상 • MBTI: ${idol.mbti}</p>
+                </div>
+            `;
+
+            const charmListHtml = idol.charms ? idol.charms.map(c => `<li>• ${c}</li>`).join('') : '<li>• 무대 카리스마</li>';
+
+            document.getElementById('modal-body').innerHTML = `
+                <div class="grid grid-cols-2 gap-2 text-xs bg-slate-100 p-3 border-2 border-slate-900">
+                    <div><b>포지션:</b> ${idol.position}</div>
+                    <div><b>컨셉:</b> ${idol.concept}</div>
+                    <div class="col-span-2"><b>대표 한줄:</b> "${idol.quote}"</div>
+                </div>
+
+                <div class="bg-blue-50 p-3 border-2 border-slate-900 text-xs">
+                    <p class="font-bold text-blue-950 mb-1">✨ 핵심 입덕 포인트 3가지</p>
+                    <ul class="text-slate-800 space-y-0.5">
+                        ${charmListHtml}
+                    </ul>
+                </div>
+
+                <div class="bg-amber-50 p-3 border-2 border-slate-900 text-xs">
+                    <p class="font-bold text-amber-950 mb-1">🎬 추천 입덕 무대 & 대표 밈</p>
+                    <p class="text-slate-800 mb-1"><b>• 밈/수식어:</b> ${idol.meme || '-'}</p>
+                    <p class="text-slate-800"><b>• 대표 무대:</b> ${idol.legend || '-'}</p>
+                </div>
+            `;
+
+            document.getElementById('idol-modal').classList.remove('hidden');
+            generatePhotocard();
+        }
+
+        function closeModal() {
+            document.getElementById('idol-modal').classList.add('hidden');
+        }
+
+        function generatePhotocard() {
+            if (!selectedIdolForModal) return;
+
+            const idol = selectedIdolForModal;
+            const nickname = document.getElementById('pc-nickname').value.trim() || 'KPOP입덕러';
+            const canvas = document.getElementById('photocard-canvas');
+            const ctx = canvas.getContext('2d');
+
+            const W = canvas.width;
+            const H = canvas.height;
+
+            ctx.fillStyle = "#E2E8F0";
+            ctx.fillRect(0, 0, W, H);
+
+            ctx.strokeStyle = "#0F172A";
+            ctx.lineWidth = 6;
+            ctx.strokeRect(3, 3, W - 6, H - 6);
+
+            ctx.fillStyle = "#0F172A";
+            ctx.fillRect(10, 10, W - 20, 36);
+
+            ctx.fillStyle = "#FFFFFF";
+            ctx.font = "bold 13px DungGeunMo";
+            ctx.fillText(`FIND-A-DOL CARD 👾`, 20, 32);
+
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(20, 54, W - 40, 165);
+            ctx.strokeRect(20, 54, W - 40, 165);
+
+            ctx.fillStyle = idol.color || "#334155";
+            ctx.fillRect(28, 62, W - 56, 149);
+
+            const hairColor = idol.hairColor || "#0F172A";
+            const skinColor = idol.gender === 'F' ? "#FFE4E6" : "#FEF08A";
+
+            ctx.fillStyle = hairColor;
+            ctx.fillRect(W/2 - 28, 90, 56, 50);
+            ctx.fillStyle = skinColor;
+            ctx.fillRect(W/2 - 22, 100, 44, 45);
+            
+            ctx.fillStyle = "#0F172A";
+            ctx.fillRect(W/2 - 12, 115, 7, 10);
+            ctx.fillRect(W/2 + 5, 115, 7, 10);
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(W/2 - 10, 117, 3, 3);
+            ctx.fillRect(W/2 + 7, 117, 3, 3);
+
+            ctx.fillStyle = "#0F172A";
+            ctx.fillRect(W/2 - 4, 134, 8, 3);
+
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(20, 230, W - 40, 100);
+            ctx.strokeRect(20, 230, W - 40, 100);
+
+            ctx.fillStyle = "#0F172A";
+            ctx.font = "bold 15px DungGeunMo";
+            ctx.fillText(`${idol.name} (${idol.group})`, 28, 254);
+
+            ctx.font = "bold 11px DungGeunMo";
+            ctx.fillText(`속성 : ${idol.animal}상 / ${idol.gender === 'F' ? '여성' : '남성'} / ${idol.genTag}`, 28, 276);
+            ctx.fillText(`포지션 : ${idol.position}`, 28, 295);
+            ctx.fillText(`MBTI : ${idol.mbti} • ${idol.concept}`, 28, 314);
+
+            ctx.fillStyle = "#2563EB";
+            ctx.fillRect(20, 340, W - 40, 46);
+            ctx.strokeRect(20, 340, W - 40, 46);
+
+            ctx.fillStyle = "#FFFFFF";
+            ctx.font = "bold 11px DungGeunMo";
+            ctx.fillText(`OWNER : ${nickname}`, 28, 359);
+            ctx.fillText(`CERTIFIED K-POP FAN 🌟`, 28, 375);
+        }
+
+        function downloadPhotocard() {
+            const canvas = document.getElementById('photocard-canvas');
+            const link = document.createElement('a');
+            const idolName = selectedIdolForModal ? selectedIdolForModal.name : 'idol';
+            link.download = `FindADol_${idolName}_Card.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showToast("포토카드가 저장되었습니다 💾", "success");
+        }
+
+        function copyPhotocardImage() {
+            const canvas = document.getElementById('photocard-canvas');
+            canvas.toBlob((blob) => {
+                if (navigator.clipboard && window.ClipboardItem) {
+                    const item = new ClipboardItem({ "image/png": blob });
+                    navigator.clipboard.write([item]).then(() => {
+                        showToast("클립보드에 포토카드가 복사되었습니다! 📋", "success");
+                    }).catch(() => {
+                        showToast("이미지 복사를 지원하지 않는 브라우저입니다 💾 저장 버튼을 사용해주세요.", "info");
+                    });
+                } else {
+                    showToast("PNG 저장 버튼을 이용해 이미지를 보관해주세요 💾", "info");
+                }
+            });
+        }
+
+        function showToast(msg, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-emerald-600' : 'bg-slate-900';
+
+            toast.className = `${bgClass} text-white pixel-card px-4 py-2.5 text-xs font-bold shadow-lg animate-toast pointer-events-auto flex items-center gap-2`;
+            toast.innerText = msg;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvas.classList.remove('hidden');
+
+            const particles = [];
+            const colors = ['#2563EB', '#D97706', '#E11D48', '#059669', '#38BDF8', '#F59E0B'];
+
+            for (let i = 0; i < 70; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    vy: Math.random() * 3 + 2,
+                    vx: Math.random() * 2 - 1
+                });
+            }
+
+            let frames = 0;
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.y += p.vy;
+                    p.x += p.vx;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, p.size, p.size);
+                });
+
+                frames++;
+                if (frames < 120) {
+                    requestAnimationFrame(animateConfetti);
+                } else {
+                    canvas.classList.add('hidden');
+                }
+            }
+            animateConfetti();
+        }
+    </script>
+</body>
+</html>
